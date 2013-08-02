@@ -218,21 +218,7 @@ namespace FlightComputer
                         readout,
                         "Atmospheric Drag",
                         FlightComputer.SIUnitType.Force,
-                        FlightComputer.GetAtmosphericEfficiency
-                    );
-                case "ATMO_DENSITY":
-                    return new SIReadoutLabel(
-                        readout,
-                        "Atmospheric Pressure",
-                        FlightComputer.SIUnitType.Density,
-                        FlightComputer.GetAtmosphericEfficiency
-                    );
-                case "VESSEL_DELTAV_STAGE":
-                    return new SIReadoutLabel(
-                        readout,
-                        "Atmospheric Pressure",
-                        FlightComputer.SIUnitType.Density,
-                        FlightComputer.GetAtmosphericEfficiency
+                        FlightComputer.GetAtmosphericDragForce
                     );
                 default:
                     return null;

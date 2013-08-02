@@ -53,9 +53,7 @@ namespace FlightComputer
                         this._settingsWindowId,
                         this._settingsWindowPosition,
                         this.DrawSettingsGUI,
-                        "KFC - Global Settings",
-                        GUILayout.MinWidth(100),
-                        GUILayout.ExpandWidth(true)
+                        "KFC - Global Settings"
                     );
 
                     // Set the values for where this window is being rendered.
@@ -150,7 +148,7 @@ namespace FlightComputer
         {
             GUILayout.BeginHorizontal();
 
-            GUILayout.Label("Test text, please ignore.");
+            this.Settings.Set("LOCKED_POSITION", GUILayout.Toggle(this.Settings.Get("LOCKED_POSITION", false), "Lock Panels"));
 
             GUILayout.EndHorizontal();
 
@@ -206,8 +204,8 @@ namespace FlightComputer
                 this._settingsWindowPosition = new Rect(
                     this.Settings.Get("SETTINGS_POSITION_X", 200),
                     this.Settings.Get("SETTINGS_POSITION_Y", 200),
-                    0,
-                    0
+                    170,
+                    70
                 );
                 this._logger.Log("Initialized settings window. Window ID: " + this._settingsWindowId);
                 this._logger.Log("Window Position: " + this._settingsWindowPosition);
