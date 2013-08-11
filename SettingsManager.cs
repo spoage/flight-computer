@@ -8,16 +8,17 @@ namespace FlightComputer
     {
         public static bool Debug = true;
 
+        public string SettingsFile;
+
         private LogManager _logger;
         private bool _writeNeeded;
-        private string _settingsFile;
         private SortedDictionary<string, string> _values = new SortedDictionary<string, string>();
 
         public SettingsManager(string filename = "settings.cfg")
         {
             this._logger = new LogManager("Settings", filename);
 
-            this._settingsFile = filename;
+            this.SettingsFile = filename;
             this.LoadFromFile();
         }
 
@@ -28,19 +29,19 @@ namespace FlightComputer
 
         public void LoadFromFile(bool clearBeforeReload = true)
         {
-            this._logger.Log("Loading settings from: " + this._settingsFile);
-            if (File.Exists<SettingsManager>(this._settingsFile))
+            this._logger.Log("Loading settings from: " + this.SettingsFile);
+            if (File.Exists<SettingsManager>(this.SettingsFile))
             {
                 if (clearBeforeReload)
                 {
                     this._values.Clear();
                 }
 
-                string[] settingLines = File.ReadAllLines<SettingsManager>(this._settingsFile);
+                string[] settingLines = File.ReadAllLines<SettingsManager>(this.SettingsFile);
 
-                foreach (string t in settingLines)
+                foreach (string settingLine in settingLines)
                 {
-                    string currentLine = t.Trim();
+                    string currentLine = settingLine.Trim();
 
                     // Skip all this jazz if the line is completely empty.
                     // Allow for comments inside the config file.
@@ -74,9 +75,9 @@ namespace FlightComputer
             if (this._writeNeeded)
             {
                 this._logger.Log("Saving settings file.");
-                if (this._values.Count > 0 && File.Exists<SettingsManager>(this._settingsFile))
+                if (this._values.Count > 0 && File.Exists<SettingsManager>(this.SettingsFile))
                 {
-                    TextWriter file = File.CreateText<SettingsManager>(this._settingsFile);
+                    TextWriter file = File.CreateText<SettingsManager>(this.SettingsFile);
 
                     foreach (KeyValuePair<string, string> setting in this._values)
                     {

@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
-using Random = System.Random;
 
 namespace FlightComputer
 {
@@ -12,17 +11,16 @@ namespace FlightComputer
         public enum SIUnitType { Speed, Distance, Pressure, Density, Force, Mass };
 
         public SettingsManager Settings;
+        public FlightReadoutManager ReadoutManager;
 
+        private bool _showSettings;
+        private bool _panelCollapsed;
+        private int _controllerWindowId;
+        private int _settingsWindowId;
         private LogManager _logger;
         private Rect _controllerWindowPosition;
         private Rect _settingsWindowPosition;
         private Dictionary<string, Texture> _textures;
-        private bool _showSettings;
-        private bool _panelCollapsed;
-
-        private int _controllerWindowId;
-        private int _settingsWindowId;
-        private List<FlightReadout> _readoutPanels = new List<FlightReadout>();
 
         /////////////////////////
         // Build the base GUI. //
@@ -88,15 +86,11 @@ namespace FlightComputer
         {
             GUILayout.BeginHorizontal();
 
-            if (this._panelCollapsed)
+            this.DrawCollapseButton();
+            if (!this._panelCollapsed)
             {
-                this.DrawCollapseButton();
-            }
-            else
-            {
-                this.DrawCollapseButton();
                 this.DrawSettingsButton();
-                this.DrawReadoutButtons();
+                this.ReadoutManager.DrawReadoutButtons();
             }
 
             GUILayout.EndHorizontal();
@@ -129,17 +123,6 @@ namespace FlightComputer
             }
         }
 
-        private void DrawReadoutButtons()
-        {
-            foreach (FlightReadout readout in this._readoutPanels)
-            {
-                if (GUILayout.Button(readout.GetReadoutName()))
-                {
-                    readout.ToggleReadout();
-                }
-            }
-        }
-
         /////////////////////////////
         // Build the settings GUI. //
         /////////////////////////////
@@ -147,9 +130,15 @@ namespace FlightComputer
         private void DrawSettingsGUI(int windowId)
         {
             GUILayout.BeginHorizontal();
+            {
+                this.Settings.Set("LOCKED_POSITION", GUILayout.Toggle(this.Settings.Get("LOCKED_POSITION", false), "Lock Panels"));
+            }
+            GUILayout.EndHorizontal();
 
-            this.Settings.Set("LOCKED_POSITION", GUILayout.Toggle(this.Settings.Get("LOCKED_POSITION", false), "Lock Panels"));
-
+            GUILayout.BeginHorizontal(GUI.skin.textArea);
+            {
+                this.ReadoutManager.DrawReadoutManagementGUI();
+            }
             GUILayout.EndHorizontal();
 
             // We always allow the settings window to be dragged.
@@ -185,9 +174,6 @@ namespace FlightComputer
                 // Set up the debug flag from the config. We pass this along to everything.
                 FlightComputer.Debug = this.Settings.Get("DEBUG", false);
 
-                // Clear the flight readout list in case we're re-initializing from an earlier instance.
-                this._readoutPanels.Clear();
-
                 // Set up the window position for the controller panel.
                 this._controllerWindowId = StaticRandom.Next();
                 this._controllerWindowPosition = new Rect(
@@ -212,27 +198,7 @@ namespace FlightComputer
 
                 // Initialize the flight readouts
                 this._logger.Log("Building list of flight readouts.");
-                foreach (KeyValuePair<string, string> setting in this.Settings)
-                {
-                    if (setting.Key.StartsWith("READOUT_"))
-                    {
-                        try
-                        {
-                            FlightReadout readout = new FlightReadout(this, this.vessel, setting.Value.Trim());
-                            this._readoutPanels.Add(readout);
-                        }
-                        catch (Exception)
-                        {
-                            this._logger.Error("Unable to load readout data. File: " + setting.Value);
-
-                            if (FlightComputer.Debug)
-                            {
-                                throw;
-                            }
-                        }
-                    }
-                }
-                this._logger.Log("Readouts initialized and added.");
+                this.ReadoutManager = new FlightReadoutManager(this, "readouts.cfg");
 
                 RenderingManager.AddToPostDrawQueue(3, this.DrawGUI);
             }
@@ -258,9 +224,6 @@ namespace FlightComputer
         private void CleanUp()
         {
             UnityEngine.Debug.Log("Cleaning up flight computer.");
-
-            this._readoutPanels.ForEach(readout => readout.DestroyReadout());
-            this._readoutPanels.Clear();
 
             // Flush the settings out that might have changed.
             this.Settings.SaveToFile();

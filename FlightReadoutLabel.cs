@@ -227,7 +227,7 @@ namespace FlightComputer
 
         public double UpdateLabelValue()
         {
-            this._value = this._updateValueCallback(Readout.ReadoutVessel);
+            this._value = this._updateValueCallback(Readout.Computer.vessel);
 
             return this._value;
         }

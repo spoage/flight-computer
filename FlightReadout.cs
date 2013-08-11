@@ -5,19 +5,17 @@ namespace FlightComputer
 {
     public class FlightReadout
     {
-        public Vessel ReadoutVessel = null;
+        public FlightComputer Computer;
         public SettingsManager ReadoutSettings = null;
+        public List<FlightReadoutIndicator> Indicators = new List<FlightReadoutIndicator>();
 
         private int _windowId;
-        private LogManager _logger;
         private Rect _windowPosition;
-        private FlightComputer _computer;
-        private List<FlightReadoutIndicator> _readoutIndicators = new List<FlightReadoutIndicator>();
+        private LogManager _logger;
 
-        public FlightReadout(FlightComputer computer, Vessel vessel, string readoutConfigFile)
+        public FlightReadout(FlightComputer computer, string readoutConfigFile)
         {
-            this._computer = computer;
-            this.ReadoutVessel = vessel;
+            this.Computer = computer;
 
             this.ReadoutSettings = new SettingsManager(readoutConfigFile);
 
@@ -43,7 +41,7 @@ namespace FlightComputer
                     FlightReadoutIndicator indicator = FlightReadoutIndicator.Factory(this, setting.Key);
                     if (indicator != null)
                     {
-                        this._readoutIndicators.Add(indicator);
+                        this.Indicators.Add(indicator);
                         this._logger.Log("Successfully loaded readout indicator. Type: " + setting.Value);
                     }
                     else
@@ -64,7 +62,7 @@ namespace FlightComputer
         {
             this._logger.Log("Destroying readout.");
 
-            this._readoutIndicators.Clear();
+            this.Indicators.Clear();
             RenderingManager.RemoveFromPostDrawQueue(3, this.DrawGUI);
 
             // Flush the settings out that might have changed.
@@ -112,20 +110,27 @@ namespace FlightComputer
             return this.ReadoutSettings.Get("READOUT_NAME", "Flight Readout " + this._windowId);
         }
 
+        public void SetReadoutName(string newReadoutName)
+        {
+            this.ReadoutSettings.Set("READOUT_NAME", newReadoutName);
+        }
+
         private void WindowGUI(int windowId)
         {
             GUILayout.BeginHorizontal(GUI.skin.textArea);
-            GUILayout.BeginVertical();
-
-            foreach (FlightReadoutIndicator indicator in this._readoutIndicators)
             {
-                indicator.Render();
+                GUILayout.BeginVertical();
+                {
+                    foreach (FlightReadoutIndicator indicator in this.Indicators)
+                    {
+                        indicator.Render();
+                    }
+                }
+                GUILayout.EndVertical();
             }
-
-            GUILayout.EndVertical();
             GUILayout.EndHorizontal();
 
-            if (!this._computer.Settings.Get("LOCKED_POSITION", false))
+            if (!this.Computer.Settings.Get("LOCKED_POSITION", false))
             {
                 GUI.DragWindow();
             }
@@ -133,7 +138,7 @@ namespace FlightComputer
 
         private void DrawGUI()
         {
-            if (this.ReadoutVessel != null && this.ReadoutVessel == FlightGlobals.ActiveVessel)
+            if (this.Computer.vessel != null && this.Computer.vessel == FlightGlobals.ActiveVessel)
             {
                 GUI.skin = HighLogic.Skin;
 
