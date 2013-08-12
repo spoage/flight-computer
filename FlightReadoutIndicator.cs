@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using FlightComputer.Indicators;
 
 namespace FlightComputer
 {
@@ -6,21 +7,21 @@ namespace FlightComputer
     {
         protected FlightReadout Readout;
 
-        abstract public void Render(GUIStyle style = null);
+        abstract public void Render();
 
         public static FlightReadoutIndicator Factory(FlightReadout readout, string identifier)
         {
-            string indicatorTypeIdentifier = readout.ReadoutSettings.Get<string>(identifier);
+            string indicatorTypeIdentifier = readout.Settings.Get<string>(identifier);
 
             if (indicatorTypeIdentifier.StartsWith("LABEL_"))
             {
                 string indicatorLabelType = indicatorTypeIdentifier.Split(new char[] { '_' }, 2)[1];
-                return FlightReadoutLabel.Factory(readout, indicatorLabelType);
+                return ReadoutLabel.Factory(readout, indicatorLabelType);
             }
-            
+
             if (indicatorTypeIdentifier == "SEPARATOR")
             {
-                return new FlightReadoutSeparator(readout);
+                return new ReadoutSeparator(readout);
             }
 
             return null;
@@ -28,14 +29,15 @@ namespace FlightComputer
 
         protected virtual GUIStyle GetIndicatorStyle()
         {
-            return this.ApplyBaseIndicatorStyle(new GUIStyle());
+            return this.GetIndicatorStyle(new GUIStyle());
         }
 
-        protected virtual GUIStyle ApplyBaseIndicatorStyle(GUIStyle style)
+        protected GUIStyle GetIndicatorStyle(GUIStyle style)
         {
-            style.normal.textColor = style.focused.textColor = Color.white;
-            style.hover.textColor = style.active.textColor = Color.yellow;
-            style.onNormal.textColor = style.onFocused.textColor = style.onHover.textColor = style.onActive.textColor = Color.green;
+            style.fontSize = this.Readout.Settings.Get("FONT_SIZE", 12);
+
+            int padding = this.Readout.Settings.Get("ROW_PADDING", 0);
+            style.padding = new RectOffset(padding, padding, padding, padding);
 
             return style;
         }

@@ -6,34 +6,47 @@ namespace FlightComputer
     public class FlightReadout
     {
         public FlightComputer Computer;
-        public SettingsManager ReadoutSettings = null;
+        public SettingsManager Settings = null;
         public List<FlightReadoutIndicator> Indicators = new List<FlightReadoutIndicator>();
-
-        private int _windowId;
-        private Rect _windowPosition;
+        
+        private bool _showSettings;
+        private int _readoutWindowId;
+        private int _settingsWindowId;
+        private Rect _readoutWindowPosition;
+        private Rect _settingsWindowPosition;
         private LogManager _logger;
 
         public FlightReadout(FlightComputer computer, string readoutConfigFile)
         {
             this.Computer = computer;
 
-            this.ReadoutSettings = new SettingsManager(readoutConfigFile);
+            this.Settings = new SettingsManager(readoutConfigFile);
 
             this._logger = new LogManager("Readouts", this.GetReadoutName());
             this._logger.Log("Config loaded and logger initialized.");
 
             this._logger.Log("Initializing readout window position.");
-            this._windowId = StaticRandom.Next();
-            this._windowPosition = new Rect(
-                this.ReadoutSettings.Get("POSITION_X", 50),
-                this.ReadoutSettings.Get("POSITION_Y", 50),
-                this.ReadoutSettings.Get("WIDTH", 250),
-                this.ReadoutSettings.Get("HEIGHT", 100)
+            this._readoutWindowId = StaticRandom.Next();
+            this._readoutWindowPosition = new Rect(
+                this.Settings.Get("POSITION_X", 50),
+                this.Settings.Get("POSITION_Y", 50),
+                0,
+                0
             );
-            this._logger.Log("Initialized readout window position. Window ID: " + this._windowId);
+            this._logger.Log("Initialized readout window. Window ID: " + this._readoutWindowId);
+
+            // Set up the window position for the settings window.
+            this._settingsWindowId = StaticRandom.Next();
+            this._settingsWindowPosition = new Rect(
+                this.Settings.Get("SETTINGS_POSITION_X", 200),
+                this.Settings.Get("SETTINGS_POSITION_Y", 200),
+                170,
+                70
+            );
+            this._logger.Log("Initialized readout settings window. Window ID: " + this._settingsWindowId);
 
             this._logger.Log("Building list of indicators for readout.");
-            foreach (KeyValuePair<string, string> setting in this.ReadoutSettings)
+            foreach (KeyValuePair<string, string> setting in this.Settings)
             {
                 if (setting.Key.StartsWith("INDICATOR_"))
                 {
@@ -66,7 +79,7 @@ namespace FlightComputer
             RenderingManager.RemoveFromPostDrawQueue(3, this.DrawGUI);
 
             // Flush the settings out that might have changed.
-            this.ReadoutSettings.SaveToFile();
+            this.Settings.SaveToFile();
         }
 
         public void ToggleReadout()
@@ -86,7 +99,7 @@ namespace FlightComputer
             this._logger.Log("Readout displayed.");
 
             RenderingManager.AddToPostDrawQueue(3, this.DrawGUI);
-            this.ReadoutSettings.Set("ACTIVE", true);
+            this.Settings.Set("ACTIVE", true);
         }
 
         public void HideReadout()
@@ -94,12 +107,12 @@ namespace FlightComputer
             this._logger.Log("Readout hidden.");
 
             RenderingManager.RemoveFromPostDrawQueue(3, this.DrawGUI);
-            this.ReadoutSettings.Set("ACTIVE", false);
+            this.Settings.Set("ACTIVE", false);
         }
 
         public bool IsActive()
         {
-            bool activityState = this.ReadoutSettings.Get("ACTIVE", false);
+            bool activityState = this.Settings.Get("ACTIVE", false);
 
             this._logger.Log("Readout is active: " + activityState);
             return activityState;
@@ -107,16 +120,61 @@ namespace FlightComputer
 
         public string GetReadoutName()
         {
-            return this.ReadoutSettings.Get("READOUT_NAME", "Flight Readout " + this._windowId);
+            return this.Settings.Get("READOUT_NAME", "Flight Readout " + this._readoutWindowId);
         }
 
         public void SetReadoutName(string newReadoutName)
         {
-            this.ReadoutSettings.Set("READOUT_NAME", newReadoutName);
+            this.Settings.Set("READOUT_NAME", newReadoutName);
         }
 
-        private void WindowGUI(int windowId)
+        private void DrawGUI()
         {
+            if (this.Computer.vessel != null && this.Computer.vessel == FlightGlobals.ActiveVessel)
+            {
+                GUI.skin = HighLogic.Skin;
+
+                this._readoutWindowPosition = GUILayout.Window(
+                    this._readoutWindowId,
+                    this._readoutWindowPosition,
+                    this.DrawReadout,
+                    this.GetReadoutName(),
+                    GUILayout.MinWidth(100),
+                    GUILayout.ExpandWidth(true)
+                );
+
+                // Set the values for where this window is being rendered.
+                this.Settings.Set("POSITION_X", (int)this._readoutWindowPosition.x);
+                this.Settings.Set("POSITION_Y", (int)this._readoutWindowPosition.y);
+                this.Settings.Set("WIDTH", (int)this._readoutWindowPosition.width);
+                this.Settings.Set("HEIGHT", (int)this._readoutWindowPosition.height);
+
+                if (this._showSettings)
+                {
+                    this._settingsWindowPosition = GUILayout.Window(
+                        this._settingsWindowId,
+                        this._settingsWindowPosition,
+                        this.DrawReadoutSettings,
+                        "Readout Settings - " + this.GetReadoutName()
+                    );
+
+                    // Set the values for where this window is being rendered.
+                    this.Settings.Set("SETTINGS_POSITION_X", (int)this._settingsWindowPosition.x);
+                    this.Settings.Set("SETTINGS_POSITION_Y", (int)this._settingsWindowPosition.y);
+                }
+            }
+        }
+
+        private void DrawReadout(int windowId)
+        {
+            GUIStyle readoutSettingsButtonStyle = new GUIStyle(GUI.skin.button);
+            readoutSettingsButtonStyle.padding = new RectOffset(1, 1, 1, 1);
+
+            if (GUI.Button(new Rect(this._readoutWindowPosition.width - 26, 6, 20, 20), FlightComputer.Textures["SETTINGS"], readoutSettingsButtonStyle))
+            {
+                this._showSettings = !this._showSettings;
+            }
+
             GUILayout.BeginHorizontal(GUI.skin.textArea);
             {
                 GUILayout.BeginVertical();
@@ -136,27 +194,11 @@ namespace FlightComputer
             }
         }
 
-        private void DrawGUI()
+        private void DrawReadoutSettings(int windowId)
         {
-            if (this.Computer.vessel != null && this.Computer.vessel == FlightGlobals.ActiveVessel)
-            {
-                GUI.skin = HighLogic.Skin;
-
-                this._windowPosition = GUILayout.Window(
-                    this._windowId,
-                    this._windowPosition,
-                    this.WindowGUI,
-                    this.GetReadoutName(),
-                    GUILayout.MinWidth(100),
-                    GUILayout.ExpandWidth(true)
-                );
-
-                // Set the values for where this window is being rendered.
-                this.ReadoutSettings.Set("POSITION_X", (int)this._windowPosition.x);
-                this.ReadoutSettings.Set("POSITION_Y", (int)this._windowPosition.y);
-                this.ReadoutSettings.Set("WIDTH", (int)this._windowPosition.width);
-                this.ReadoutSettings.Set("HEIGHT", (int)this._windowPosition.height);
-            }
+            GUILayout.BeginHorizontal();
+            GUILayout.Label("blah blah");
+            GUILayout.EndHorizontal();
         }
     }
 }

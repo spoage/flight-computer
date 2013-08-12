@@ -9,9 +9,11 @@ namespace FlightComputer
         public static bool Debug = true;
         public const int ControllerWindowHeight = 30;
         public enum SIUnitType { Speed, Distance, Pressure, Density, Force, Mass };
+        public static Dictionary<string, Texture> Textures;
 
         public SettingsManager Settings;
         public FlightReadoutManager ReadoutManager;
+        public VesselComputer VesselComputer;
 
         private bool _showSettings;
         private bool _panelCollapsed;
@@ -20,7 +22,6 @@ namespace FlightComputer
         private LogManager _logger;
         private Rect _controllerWindowPosition;
         private Rect _settingsWindowPosition;
-        private Dictionary<string, Texture> _textures;
 
         /////////////////////////
         // Build the base GUI. //
@@ -67,19 +68,19 @@ namespace FlightComputer
 
         private void LoadGUIAssets()
         {
-            this._textures = new Dictionary<string, Texture>();
+            FlightComputer.Textures = new Dictionary<string, Texture>();
 
             Texture2D texture1 = new Texture2D(128, 128);
             texture1.LoadImage(KSP.IO.File.ReadAllBytes<FlightReadout>("gear.png"));
-            this._textures.Add("SETTINGS", texture1);
+            FlightComputer.Textures.Add("SETTINGS", texture1);
 
             Texture2D texture2 = new Texture2D(128, 128);
             texture2.LoadImage(KSP.IO.File.ReadAllBytes<FlightReadout>("arrow_left.png"));
-            this._textures.Add("PANEL_COLLAPSE_LEFT", texture2);
+            FlightComputer.Textures.Add("PANEL_COLLAPSE_LEFT", texture2);
 
             Texture2D texture3 = new Texture2D(128, 128);
             texture3.LoadImage(KSP.IO.File.ReadAllBytes<FlightReadout>("arrow_right.png"));
-            this._textures.Add("PANEL_COLLAPSE_RIGHT", texture3);
+            FlightComputer.Textures.Add("PANEL_COLLAPSE_RIGHT", texture3);
         }
 
         private void DrawControllerGUI(int windowId)
@@ -105,7 +106,7 @@ namespace FlightComputer
         {
             string collapseTextureName = this._panelCollapsed ? "PANEL_COLLAPSE_RIGHT" : "PANEL_COLLAPSE_LEFT";
 
-            if (GUILayout.Button(this._textures[collapseTextureName], GUILayout.MaxWidth(ControllerWindowHeight), GUILayout.MaxHeight(ControllerWindowHeight)))
+            if (GUILayout.Button(FlightComputer.Textures[collapseTextureName], GUILayout.MaxWidth(ControllerWindowHeight), GUILayout.MaxHeight(ControllerWindowHeight)))
             {
                 this._panelCollapsed = !this._panelCollapsed;
 
@@ -117,7 +118,7 @@ namespace FlightComputer
 
         private void DrawSettingsButton()
         {
-            if (GUILayout.Button(this._textures["SETTINGS"], GUILayout.MaxWidth(ControllerWindowHeight), GUILayout.MaxHeight(ControllerWindowHeight)))
+            if (GUILayout.Button(FlightComputer.Textures["SETTINGS"], GUILayout.MaxWidth(ControllerWindowHeight), GUILayout.MaxHeight(ControllerWindowHeight)))
             {
                 this._showSettings = !this._showSettings;
             }
@@ -160,6 +161,9 @@ namespace FlightComputer
         {
             if (state != StartState.Editor && state != StartState.None)
             {
+                // We use this to unify flight data calculations.
+                this.VesselComputer = new VesselComputer(this.vessel);
+
                 // Set up the central logging system.
                 this._logger = new LogManager("Main");
                 this._logger.Log("Initialized data log manager.");
@@ -183,7 +187,6 @@ namespace FlightComputer
                     0
                 );
                 this._logger.Log("Initialized flight readout controller window. Window ID: " + this._controllerWindowId);
-                this._logger.Log("Window Position: " + this._controllerWindowPosition);
 
                 // Set up the window position for the settings window.
                 this._settingsWindowId = StaticRandom.Next();
@@ -194,11 +197,10 @@ namespace FlightComputer
                     70
                 );
                 this._logger.Log("Initialized settings window. Window ID: " + this._settingsWindowId);
-                this._logger.Log("Window Position: " + this._settingsWindowPosition);
 
                 // Initialize the flight readouts
                 this._logger.Log("Building list of flight readouts.");
-                this.ReadoutManager = new FlightReadoutManager(this, "readouts.cfg");
+                this.ReadoutManager = new FlightReadoutManager(this);
 
                 RenderingManager.AddToPostDrawQueue(3, this.DrawGUI);
             }
@@ -232,157 +234,6 @@ namespace FlightComputer
         //////////////////////////////////
         // Library stuff all down here. //
         //////////////////////////////////
-
-        // Various flight calculations.
-        public static double GetCurrentGForces(Vessel vessel)
-        {
-            return vessel.geeForce;
-        }
-
-        // Orbital data calculations.
-        public static double GetApoapsisHeight(Vessel vessel)
-        {
-            return vessel.orbit.ApA;
-        }
-
-        public static double GetTimeToApoapsis(Vessel vessel)
-        {
-            return vessel.orbit.timeToAp;
-        }
-
-        public static double GetPeriapsisHeight(Vessel vessel)
-        {
-            return vessel.orbit.PeA;
-        }
-
-        public static double GetTimeToPeriapsis(Vessel vessel)
-        {
-            return vessel.orbit.timeToPe;
-        }
-
-        public static double GetOrbitalInclination(Vessel vessel)
-        {
-            return vessel.orbit.inclination;
-        }
-
-        public static double GetOrbitalEccentricity(Vessel vessel)
-        {
-            return vessel.orbit.eccentricity;
-        }
-
-        public static double GetOrbitalPeriod(Vessel vessel)
-        {
-            return vessel.orbit.period;
-        }
-
-        public static double GetLongitudeOfAN(Vessel vessel)
-        {
-            return vessel.orbit.LAN;
-        }
-
-        public static double GetLongitudeOfPe(Vessel vessel)
-        {
-            return vessel.orbit.LAN + vessel.orbit.argumentOfPeriapsis;
-        }
-
-        public static double GetSemiMajorAxis(Vessel vessel)
-        {
-            return vessel.orbit.semiMajorAxis;
-        }
-
-        public static double GetSemiMinorAxis(Vessel vessel)
-        {
-            return vessel.orbit.semiMinorAxis;
-        }
-
-        // Surface flight calculations.
-        public static double GetSeaLevelAltitude(Vessel vessel)
-        {
-            return vessel.mainBody.GetAltitude(vessel.CoM);
-        }
-
-        public static double GetTerrainAltitude(Vessel vessel)
-        {
-            return FlightComputer.GetSeaLevelAltitude(vessel) - vessel.terrainAltitude;
-        }
-
-        public static double GetHorizontalSurfaceSpeed(Vessel vessel)
-        {
-            return vessel.verticalSpeed;
-        }
-
-        public static double GetVerticalSurfaceSpeed(Vessel vessel)
-        {
-            return vessel.horizontalSrfSpeed;
-        }
-
-        public static double GetLongitude(Vessel vessel)
-        {
-            return vessel.longitude;
-        }
-
-        public static double GetLatitude(Vessel vessel)
-        {
-            return vessel.latitude;
-        }
-
-        public static double GetGForce(Vessel vessel)
-        {
-            return vessel.geeForce;
-        }
-
-        // Aerodynamic calculations.
-        public static double GetTerminalVelocity(Vessel vessel)
-        {
-            if (vessel.atmDensity <= 0)
-            {
-                return 0;
-            }
-
-            return Math.Sqrt(
-                (2 * FlightComputer.GetTotalPartMass(vessel) * FlightGlobals.getGeeForceAtPosition(vessel.CoM).magnitude)
-                / (vessel.atmDensity * FlightComputer.GetTotalPartDrag(vessel) * FlightGlobals.DragMultiplier)
-            );
-        }
-
-        public static double GetAtmosphericEfficiency(Vessel vessel)
-        {
-            double terminalVelocity = FlightComputer.GetTerminalVelocity(vessel);
-            if (terminalVelocity <= 0)
-            {
-                return 0;
-            }
-
-            return FlightGlobals.ship_srfSpeed / terminalVelocity;
-        }
-
-        public static double GetAtmosphericDragForce(Vessel vessel)
-        {
-            return 0.5 * vessel.atmDensity * Math.Pow(FlightGlobals.ship_srfSpeed, 2) * FlightComputer.GetTotalPartDrag(vessel) * FlightGlobals.DragMultiplier;
-        }
-
-        // Craft calculations.
-        public static double GetTotalPartMass(Vessel vessel)
-        {
-            double totalMass = 0;
-            foreach (Part part in vessel.parts)
-            {
-                totalMass += part.mass + part.GetResourceMass();
-            }
-
-            return totalMass;
-        }
-
-        public static double GetTotalPartDrag(Vessel vessel)
-        {
-            double totalDrag = 0;
-            foreach (Part part in vessel.parts)
-            {
-                totalDrag += (part.mass + part.GetResourceMass()) * part.maximum_drag;
-            }
-
-            return totalDrag;
-        }
 
         // Standard utility method to format data in certain ways.
         public static string FormatSI(double number, SIUnitType type)

@@ -57,7 +57,7 @@ namespace FlightComputer
                     bool listContainsReadout = false;
                     foreach (FlightReadout readout in this.Readouts)
                     {
-                        if (currentLine == readout.ReadoutSettings.SettingsFile)
+                        if (currentLine == readout.Settings.SettingsFile)
                         {
                             listContainsReadout = true;
                         }
@@ -86,7 +86,7 @@ namespace FlightComputer
 
                     foreach (FlightReadout readout in this.Readouts)
                     {
-                        file.WriteLine(readout.ReadoutSettings.SettingsFile);
+                        file.WriteLine(readout.Settings.SettingsFile);
                     }
 
                     file.Close();
