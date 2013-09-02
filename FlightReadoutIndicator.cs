@@ -1,27 +1,53 @@
-﻿using UnityEngine;
-using FlightComputer.Indicators;
+﻿using System;
+using System.Linq;
+using System.Reflection;
+using System.Collections.Generic;
+using UnityEngine;
 
 namespace FlightComputer
 {
     public abstract class FlightReadoutIndicator
     {
+        private static Dictionary<string, Type> _indicatorTypes;
+
         protected FlightReadout Readout;
 
         abstract public void Render();
+        abstract public void RenderConfigRow();
+
+        public static void ClearIndicatorTypes()
+        {
+            FlightReadoutIndicator._indicatorTypes = null;
+        }
 
         public static FlightReadoutIndicator Factory(FlightReadout readout, string identifier)
         {
-            string indicatorTypeIdentifier = readout.Settings.Get<string>(identifier);
-
-            if (indicatorTypeIdentifier.StartsWith("LABEL_"))
+            if (FlightReadoutIndicator._indicatorTypes == null)
             {
-                string indicatorLabelType = indicatorTypeIdentifier.Split(new char[] { '_' }, 2)[1];
-                return ReadoutLabel.Factory(readout, indicatorLabelType);
+                Type baseLabelType = Type.GetType("FlightComputer.FlightReadoutIndicator", true);
+
+                // Iterate through all assemblies accessible to the application and grab the ones
+                // that correspond to the FlightComputer plugin. This should (in theory, though this
+                // is untested currently) allow extension of the flight computer via external DLLs.
+                IEnumerable<Type> flightComputerIndicatorTypes = Enumerable.Empty<Type>();
+                foreach (Assembly assembly in AppDomain.CurrentDomain.GetAssemblies())
+                {
+                    flightComputerIndicatorTypes = flightComputerIndicatorTypes
+                        .Concat(assembly.GetTypes().Where(t => baseLabelType != null && (baseLabelType.IsAssignableFrom(t) && !t.IsAbstract)));
+                }
+
+                FlightReadoutIndicator._indicatorTypes = new Dictionary<string, Type>();
+                foreach (Type indicatorType in flightComputerIndicatorTypes)
+                {
+                    string indicatorTypeIdentifier = (string)indicatorType.GetField("TypeIdentifier").GetValue(null);
+
+                    FlightReadoutIndicator._indicatorTypes.Add(indicatorTypeIdentifier, indicatorType);
+                }
             }
 
-            if (indicatorTypeIdentifier == "SEPARATOR")
+            if (FlightReadoutIndicator._indicatorTypes.ContainsKey(identifier))
             {
-                return new ReadoutSeparator(readout);
+                return (FlightReadoutIndicator)Activator.CreateInstance(FlightReadoutIndicator._indicatorTypes[identifier], new object[] { readout });
             }
 
             return null;

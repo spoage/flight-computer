@@ -4,6 +4,8 @@ namespace FlightComputer.Indicators
 {
     public class ReadoutSeparator : FlightReadoutIndicator
     {
+        public static string TypeIdentifier = "SEPARATOR";
+
         public ReadoutSeparator(FlightReadout readout)
         {
             this.Readout = readout;
@@ -18,6 +20,11 @@ namespace FlightComputer.Indicators
                 GUILayout.Space(15 * style.fontSize);
             }
             GUILayout.EndHorizontal();
+        }
+
+        public override void RenderConfigRow()
+        {
+            GUILayout.Label("--------");
         }
     }
 }

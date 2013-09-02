@@ -1,13 +1,12 @@
-﻿using System.Collections.Generic;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace FlightComputer
 {
     public class FlightReadout
     {
         public FlightComputer Computer;
-        public SettingsManager Settings = null;
-        public List<FlightReadoutIndicator> Indicators = new List<FlightReadoutIndicator>();
+        public SettingMapManager Settings = null;
+        public ReadoutIndicatorManager IndicatorManager = null;
         
         private bool _showSettings;
         private int _readoutWindowId;
@@ -20,7 +19,7 @@ namespace FlightComputer
         {
             this.Computer = computer;
 
-            this.Settings = new SettingsManager(readoutConfigFile);
+            this.Settings = new SettingMapManager(readoutConfigFile);
 
             this._logger = new LogManager("Readouts", this.GetReadoutName());
             this._logger.Log("Config loaded and logger initialized.");
@@ -46,24 +45,8 @@ namespace FlightComputer
             this._logger.Log("Initialized readout settings window. Window ID: " + this._settingsWindowId);
 
             this._logger.Log("Building list of indicators for readout.");
-            foreach (KeyValuePair<string, string> setting in this.Settings)
-            {
-                if (setting.Key.StartsWith("INDICATOR_"))
-                {
-                    this._logger.Log("Attempting to load readout indicator. Type: " + setting.Value);
-                    FlightReadoutIndicator indicator = FlightReadoutIndicator.Factory(this, setting.Key);
-                    if (indicator != null)
-                    {
-                        this.Indicators.Add(indicator);
-                        this._logger.Log("Successfully loaded readout indicator. Type: " + setting.Value);
-                    }
-                    else
-                    {
-                        this._logger.Error("Unable to load readout indicator. Type: " + setting.Value);
-                    }
-                }
-            }
-            this._logger.Log("Indicators initialized and added.");
+            string indicatorListFile = this.Settings.Get("INDICATOR_LIST", "indicators-" + readoutConfigFile);
+            this.IndicatorManager = new ReadoutIndicatorManager(this, indicatorListFile);
 
             if (this.IsActive())
             {
@@ -75,11 +58,10 @@ namespace FlightComputer
         {
             this._logger.Log("Destroying readout.");
 
-            this.Indicators.Clear();
-            RenderingManager.RemoveFromPostDrawQueue(3, this.DrawGUI);
-
             // Flush the settings out that might have changed.
             this.Settings.SaveToFile();
+            this.IndicatorManager.DestroyList();
+            RenderingManager.RemoveFromPostDrawQueue(3, this.DrawGUI);
         }
 
         public void ToggleReadout()
@@ -146,8 +128,6 @@ namespace FlightComputer
                 // Set the values for where this window is being rendered.
                 this.Settings.Set("POSITION_X", (int)this._readoutWindowPosition.x);
                 this.Settings.Set("POSITION_Y", (int)this._readoutWindowPosition.y);
-                this.Settings.Set("WIDTH", (int)this._readoutWindowPosition.width);
-                this.Settings.Set("HEIGHT", (int)this._readoutWindowPosition.height);
 
                 if (this._showSettings)
                 {
@@ -177,14 +157,7 @@ namespace FlightComputer
 
             GUILayout.BeginHorizontal(GUI.skin.textArea);
             {
-                GUILayout.BeginVertical();
-                {
-                    foreach (FlightReadoutIndicator indicator in this.Indicators)
-                    {
-                        indicator.Render();
-                    }
-                }
-                GUILayout.EndVertical();
+                this.IndicatorManager.GetIndicatorDisplay();
             }
             GUILayout.EndHorizontal();
 

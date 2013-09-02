@@ -11,7 +11,7 @@ namespace FlightComputer
         public enum SIUnitType { Speed, Distance, Pressure, Density, Force, Mass };
         public static Dictionary<string, Texture> Textures;
 
-        public SettingsManager Settings;
+        public SettingMapManager Settings;
         public FlightReadoutManager ReadoutManager;
         public VesselComputer VesselComputer;
 
@@ -170,7 +170,7 @@ namespace FlightComputer
 
                 // Start loading up the rest of the plugin.
                 this._logger.Log("Starting flight computer.");
-                this.Settings = new SettingsManager();
+                this.Settings = new SettingMapManager("settings.cfg");
 
                 // Load the GUI assets.
                 this.LoadGUIAssets();
@@ -198,9 +198,14 @@ namespace FlightComputer
                 );
                 this._logger.Log("Initialized settings window. Window ID: " + this._settingsWindowId);
 
+                // There's a chance we're resuming a previously-saved vessel in the same runtime. Clear
+                // the type resolution cache for indicators so that we can reload readouts from the settings
+                // without having to restart the entire game.
+                FlightReadoutIndicator.ClearIndicatorTypes();
+
                 // Initialize the flight readouts
                 this._logger.Log("Building list of flight readouts.");
-                this.ReadoutManager = new FlightReadoutManager(this);
+                this.ReadoutManager = new FlightReadoutManager(this, "readouts.cfg");
 
                 RenderingManager.AddToPostDrawQueue(3, this.DrawGUI);
             }
@@ -293,9 +298,9 @@ namespace FlightComputer
         }
 
         // Format a time string in a specific way.
-        public static string FormatTime(double seconds)
+        public static string FormatTime(double formatSeconds)
         {
-            TimeSpan time = TimeSpan.FromSeconds(seconds);
+            TimeSpan time = TimeSpan.FromSeconds(formatSeconds);
 
             int years = 0;
             if (time.Days > 365)
@@ -304,24 +309,12 @@ namespace FlightComputer
                 time = time.Subtract(TimeSpan.FromDays(years * 365));
             }
 
-            string timeOutput;
-            if (years > 0)
-            {
-                timeOutput = string.Format("{0:D}:{1:g}", years, time);
-            }
-            else
-            {
-                timeOutput = string.Format("{0:g}", time);
-            }
+            if (years > 0) return years + ":" + time.Days.ToString("000") + ":" + time.Hours.ToString("00") + ":" + time.Minutes.ToString("00") + ":" + time.Seconds.ToString("00.0") + "s";
+            if (time.Days > 0) return time.Days + ":" + time.Hours.ToString("00") + ":" + time.Minutes.ToString("00") + ":" + time.Seconds.ToString("00.0") + "s";
+            if (time.Hours > 0) return time.Hours + ":" + time.Minutes.ToString("00") + ":" + time.Seconds.ToString("00.0") + "s";
+            if (time.Minutes > 0) return time.Minutes + ":" + time.Seconds.ToString("00.0") + "s";
 
-            // This forces it to be truncated to only one decimal place.
-            int timeOutputDecimalPlace = timeOutput.LastIndexOf('.');
-            if (timeOutputDecimalPlace > -1)
-            {
-                timeOutput = timeOutput.Substring(0, timeOutputDecimalPlace + 2);
-            }
-
-            return timeOutput;
+            return time.Seconds.ToString("0.0") + "s";
         }
     }
 }
